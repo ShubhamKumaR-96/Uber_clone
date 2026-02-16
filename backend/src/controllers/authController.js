@@ -12,7 +12,7 @@ import ErrorResponse from "../utils/errorResponse.js";
 export const register = asyncHandler(async (req, res, next) => {
   const { email, password, firstName, lastName, phone, role } = req.body;
 
-  const userExits = await UserModel.find({
+  const userExits = await UserModel.findOne({
     $or: [{ email }, { phone }],
   });
 
@@ -72,10 +72,16 @@ export const login = asyncHandler(async (req, res, next) => {
     );
   }
 
-  const user = UserModel.findOne({ email }).select("+password");
+  const user = await UserModel.findOne({ email }).select("+password");
 
   if (!user) {
     return next(new ErrorResponse("invalid credential", 401));
+  }
+
+  const isPasswordMatch = await user.comparePassword(password);
+
+  if (!isPasswordMatch) {
+    return next(new ErrorResponse("Invalid credentials", 401));
   }
 
   if (!user.isActive) {
@@ -105,6 +111,23 @@ export const login = asyncHandler(async (req, res, next) => {
     tokens: {
       accessToken,
       refreshToken,
+    },
+  });
+});
+
+// @desc get current user
+// @route get/api/v1/auth/me
+// @access Private
+
+export const getMe = asyncHandler(async (req, res, next) => {
+  const user = await UserModel.findById(req.user.id);
+  if (!user) {
+    return next(new ErrorResponse("User not found", 404));
+  }
+  res.status(200).json({
+    success: true,
+    data: {
+      user,
     },
   });
 });

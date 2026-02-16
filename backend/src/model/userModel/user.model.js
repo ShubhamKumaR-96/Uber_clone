@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "Please provide a password"],
       minlength: 6,
-      select: false, // exclude password from query results by default
+      select: false,
     },
     firstName: {
       type: String,
@@ -68,6 +68,9 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    lastLogin: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
@@ -76,24 +79,21 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-userSchema.index({email:1})
-userSchema.index({phone:1})
+userSchema.index({ email: 1 });
+userSchema.index({ phone: 1 });
 
 userSchema.virtual("fullname").get(function () {
   return `${this.firstName} ${this.lastName}`;
 });
 
-userSchema.pre("save", async function (next) {
+// ✅ Fixed pre-save middleware
+userSchema.pre("save", async function () {
   if (!this.isModified("password")) {
-    return next();
+    return;
   }
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (err) {
-    next(err);
-  }
+  
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
